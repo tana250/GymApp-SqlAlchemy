@@ -1,0 +1,18 @@
+from .telefonos import Telefono
+from .socios import Socio
+from .planes import Plan
+from .socio_planes import SocioPlan
+from .cuotas import Cuota
+from .cuotas_planes import CuotaPlan
+from .pagos import Pago
+
+
+__all__ = [
+    "Telefono",
+    "Socio",
+    "Plan",
+    "SocioPlan",
+    "Cuota",
+    "CuotaPlan",
+    "Pago",
+]
