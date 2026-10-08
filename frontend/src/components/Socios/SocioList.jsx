@@ -1,8 +1,8 @@
 export default function SocioList({
   socios,
   onEdit,
-  onDelete,
-  onSelect,
+  onPlanes,
+  onToggleActivo,
 }) {
   if (!socios.length) {
     return <p>No hay socios registrados.</p>;
@@ -13,32 +13,32 @@ export default function SocioList({
       {socios.map((socio) => (
         <article key={socio.id}>
           <h3>
+            {socio.dni || "Sin DNI"} —{" "}
             {socio.nombre} {socio.apellido}
+            {!socio.activo && " (Baja)"}
           </h3>
-
-          <p>
-            DNI: {socio.dni || "Sin DNI"}
-          </p>
-
-          <button
-            type="button"
-            onClick={() => onSelect(socio)}
-          >
-            Ver
-          </button>
 
           <button
             type="button"
             onClick={() => onEdit(socio)}
           >
-            Editar
+            Modificar
           </button>
 
           <button
             type="button"
-            onClick={() => onDelete(socio.id)}
+            onClick={() => onPlanes(socio)}
           >
-            Eliminar
+            Planes
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onToggleActivo(socio)}
+          >
+            {socio.activo
+              ? "Dar de baja"
+              : "Reactivar"}
           </button>
         </article>
       ))}

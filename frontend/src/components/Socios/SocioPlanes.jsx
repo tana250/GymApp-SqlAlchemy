@@ -43,12 +43,14 @@ export default function SocioPlanes({
 
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
                     onRemove(
                       socio.id,
                       socioPlan.planId
-                    )
-                  }
+                    ).catch(() => {
+                      // El hook ya guardó el error.
+                    });
+                  }}
                 >
                   Quitar
                 </button>
@@ -66,12 +68,14 @@ export default function SocioPlanes({
             <button
               key={plan.id}
               type="button"
-              onClick={() =>
+              onClick={() => {
                 onAssign(
                   socio.id,
                   plan.id
-                )
-              }
+                ).catch(() => {
+                  // El hook ya guardó el error.
+                });
+              }}
             >
               + {plan.nombre}
             </button>

@@ -8,7 +8,8 @@ import { useTelefonos } from "../hooks/useTelefonos";
 import SocioForm from "../components/Socios/SocioForm";
 import SocioList from "../components/Socios/SocioList";
 import SocioPlanes from "../components/Socios/SocioPlanes";
-import SocioTelefonos from "../components/Socios/SocioTelefonos";
+import SocioEditForm from "../components/Socios/SocioEditForm";
+import Modal from "../components/Socios/Modal";
 
 export default function SociosPage() {
   const {
@@ -17,7 +18,6 @@ export default function SociosPage() {
     error,
     createSocio,
     updateSocio,
-    deleteSocio,
   } = useSocios();
 
   const {
@@ -26,50 +26,64 @@ export default function SociosPage() {
 
   const {
     socioPlanes,
+    loading: loadingSocioPlanes,
+    error: socioPlanesError,
     assignPlan,
     removePlan,
   } = useSocioPlanes();
 
   const {
     telefonos,
+    error: telefonosError,
     createTelefono,
     deleteTelefono,
+    loadTelefonos,
   } = useTelefonos();
 
-  const [socioEditando, setSocioEditando] =
-    useState(null);
+  // { tipo: "editar" | "planes", socioId }
+  const [modal, setModal] = useState(null);
 
-  const [socioSeleccionado, setSocioSeleccionado] =
-    useState(null);
+  // El socio se deriva de la lista para no
+  // quedarnos con un snapshot viejo.
+  const socioSeleccionado = modal
+    ? socios.find(
+        (socio) => socio.id === modal.socioId
+      ) ?? null
+    : null;
 
-  async function handleSubmit(data) {
-    if (socioEditando) {
-      await updateSocio(
-        socioEditando.id,
-        data
-      );
+  async function handleCreate(data) {
+    await createSocio(data);
 
-      setSocioEditando(null);
-    } else {
-      await createSocio(data);
-    }
+    // Socio.to_json no incluye teléfonos:
+    // hace falta refrescar la lista.
+    await loadTelefonos();
   }
 
-  async function handleDelete(id) {
+  async function handleEdit(data) {
+    await updateSocio(modal.socioId, data);
+
+    setModal(null);
+  }
+
+  async function handleToggleActivo(socio) {
+    const accion = socio.activo
+      ? "Dar de baja"
+      : "Reactivar";
+
     const confirmar = window.confirm(
-      "¿Eliminar este socio?"
+      `¿${accion} a ${socio.nombre} ${socio.apellido}?`
     );
 
     if (!confirmar) {
       return;
     }
 
-    await deleteSocio(id);
-
-    if (
-      socioSeleccionado?.id === id
-    ) {
-      setSocioSeleccionado(null);
+    try {
+      await updateSocio(socio.id, {
+        activo: !socio.activo,
+      });
+    } catch {
+      // El hook ya guardó el error.
     }
   }
 
@@ -88,18 +102,11 @@ export default function SociosPage() {
       )}
 
       <section>
-        <h2>
-          {socioEditando
-            ? "Editar socio"
-            : "Nuevo socio"}
-        </h2>
+        <h2>Nuevo socio</h2>
 
         <SocioForm
-          socio={socioEditando}
-          onSubmit={handleSubmit}
-          onCancel={() =>
-            setSocioEditando(null)
-          }
+          planes={planes}
+          onSubmit={handleCreate}
         />
       </section>
 
@@ -108,44 +115,71 @@ export default function SociosPage() {
 
         <SocioList
           socios={socios}
-          onEdit={setSocioEditando}
-          onDelete={handleDelete}
-          onSelect={setSocioSeleccionado}
+          onEdit={(socio) =>
+            setModal({
+              tipo: "editar",
+              socioId: socio.id,
+            })
+          }
+          onPlanes={(socio) =>
+            setModal({
+              tipo: "planes",
+              socioId: socio.id,
+            })
+          }
+          onToggleActivo={handleToggleActivo}
         />
       </section>
 
-      {socioSeleccionado && (
-        <section>
-          <h2>
-            {socioSeleccionado.nombre}{" "}
-            {socioSeleccionado.apellido}
-          </h2>
-
-          <SocioPlanes
-            socio={socioSeleccionado}
-            planes={planes}
-            socioPlanes={socioPlanes}
-            onAssign={assignPlan}
-            onRemove={removePlan}
-          />
-
-          <SocioTelefonos
-            socio={socioSeleccionado}
-            telefonos={telefonos}
-            onAdd={createTelefono}
-            onRemove={deleteTelefono}
-          />
-
-          <button
-            type="button"
-            onClick={() =>
-              setSocioSeleccionado(null)
-            }
+      {modal?.tipo === "editar" &&
+        socioSeleccionado && (
+          <Modal
+            titulo={`Modificar ${socioSeleccionado.nombre} ${socioSeleccionado.apellido}`}
+            onClose={() => setModal(null)}
           >
-            Cerrar
-          </button>
-        </section>
-      )}
+            {telefonosError && (
+              <p>
+                Error: {telefonosError.message}
+              </p>
+            )}
+
+            <SocioEditForm
+              key={socioSeleccionado.id}
+              socio={socioSeleccionado}
+              telefonos={telefonos}
+              onAddTelefono={createTelefono}
+              onRemoveTelefono={deleteTelefono}
+              onSubmit={handleEdit}
+              onCancel={() => setModal(null)}
+            />
+          </Modal>
+        )}
+
+      {modal?.tipo === "planes" &&
+        socioSeleccionado && (
+          <Modal
+            titulo={`Planes de ${socioSeleccionado.nombre} ${socioSeleccionado.apellido}`}
+            onClose={() => setModal(null)}
+          >
+            {socioPlanesError && (
+              <p>
+                Error: {socioPlanesError.message}
+              </p>
+            )}
+
+            {loadingSocioPlanes ? (
+              <p>Cargando planes...</p>
+            ) : (
+              <SocioPlanes
+                socio={socioSeleccionado}
+                planes={planes}
+                socioPlanes={socioPlanes}
+                onAssign={assignPlan}
+                onRemove={removePlan}
+              />
+            )}
+          </Modal>
+        )}
     </main>
   );
 }

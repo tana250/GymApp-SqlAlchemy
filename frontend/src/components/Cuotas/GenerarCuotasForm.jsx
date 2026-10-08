@@ -18,12 +18,16 @@ export default function GenerarCuotasForm({
   async function handleSubmit(event) {
     event.preventDefault();
 
-    const result = await onGenerate(
-      Number(año),
-      Number(mes)
-    );
+    try {
+      const result = await onGenerate(
+        Number(año),
+        Number(mes)
+      );
 
-    setResultado(result);
+      setResultado(result);
+    } catch {
+      // El error lo muestra CuotasPage.
+    }
   }
 
   return (

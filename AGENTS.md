@@ -63,12 +63,14 @@ npm run lint   # oxlint; pasa, hoy con warnings
   `useSocioPlanes`): toda mutación termina con `await loadX()` — la lista se re-pide al backend,
   nunca se actualiza en local. El `loading` de pantalla completa solo se activa en la primera
   carga (ref `primeraCarga`), para no blanquear la UI en cada guardado.
-- Trampa del proxy de Vite (`frontend/vite.config.js`): solo los prefijos listados llegan a la
-  API. `/socios`, `/telefonos`, `/planes`, `/cuotas`, `/pagos` funcionan. `/socioPlanes/` no
-  matchea ninguna entrada (entradas viejas `/socio-planes`, `/cuota-planes`), así que en dev
-  Vite devuelve `index.html` y la UI de SocioPlanes recibe HTML en vez de JSON;
-  `/cuotasPlanes/` funciona solo por accidente vía el prefijo `/cuotas`. Arreglar la config del
-  proxy al tocar endpoints.
+- La página de Socios usa modales (`components/Socios/Modal.jsx`): "Modificar" (`SocioEditForm`:
+  nombre, apellido y ABM de teléfonos) y "Planes" (`SocioPlanes`: asignar/quitar). "Dar de baja"
+  / "Reactivar" es un `PATCH /socios/<id> {activo}`; la creación manda `telefonos` + `planIds`
+  en el mismo `POST /socios/` (`SocioForm`). El socio del modal se deriva de la lista por id
+  (no se guarda un snapshot).
+- Proxy de Vite (`frontend/vite.config.js`): solo los prefijos listados llegan a la API — hoy
+  `/socios`, `/telefonos`, `/planes`, `/socioPlanes`, `/cuotas`, `/cuotasPlanes`, `/pagos`. Al
+  agregar un recurso, agregar su prefijo acá o Vite devuelve `index.html` en vez de JSON.
 - La API no tiene CORS: las llamadas del browser tienen que pasar por el proxy de Vite en dev.
 
 ## Git

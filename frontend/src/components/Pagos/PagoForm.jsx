@@ -29,6 +29,8 @@ export default function PagoForm({
       });
 
       setImporte("");
+    } catch {
+      // El error lo muestra CuotasPage.
     } finally {
       setSaving(false);
     }

@@ -19,6 +19,7 @@ export default function CuotasPage() {
 
   const {
     createPago,
+    error: pagosError,
   } = usePagos();
 
   const [cuotaSeleccionada, setCuotaSeleccionada] =
@@ -54,9 +55,10 @@ export default function CuotasPage() {
     <main>
       <h1>Cuotas</h1>
 
-      {error && (
+      {(error || pagosError) && (
         <p>
-          Error: {error.message}
+          Error:{" "}
+          {(error || pagosError).message}
         </p>
       )}
 

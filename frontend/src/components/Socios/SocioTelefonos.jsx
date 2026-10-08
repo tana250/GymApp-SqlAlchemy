@@ -30,6 +30,8 @@ export default function SocioTelefonos({
       });
 
       setNumero("");
+    } catch {
+      // El hook ya guardó el error.
     } finally {
       setSaving(false);
     }
@@ -48,12 +50,14 @@ export default function SocioTelefonos({
 
             <button
               type="button"
-              onClick={() =>
+              onClick={() => {
                 onRemove(
                   telefono.socioId,
                   telefono.numero
-                )
-              }
+                ).catch(() => {
+                  // El hook ya guardó el error.
+                });
+              }}
             >
               Eliminar
             </button>
