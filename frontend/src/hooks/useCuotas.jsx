@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import cuotasApi from "../services/cuotasApi";
 
 export function useCuotas() {
@@ -7,9 +7,16 @@ export function useCuotas() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
 
+  // Ver useSocios: re-fetch tras cada mutación,
+  // loading solo en la primera carga.
+  const primeraCarga = useRef(true);
+
   const loadCuotas = useCallback(async () => {
     try {
-      setLoading(true);
+      if (primeraCarga.current) {
+        setLoading(true);
+      }
+
       setError(null);
 
       const data = await cuotasApi.getAll();
@@ -18,6 +25,7 @@ export function useCuotas() {
     } catch (error) {
       setError(error);
     } finally {
+      primeraCarga.current = false;
       setLoading(false);
     }
   }, []);
@@ -55,13 +63,21 @@ export function useCuotas() {
     [loadCuotas]
   );
 
-  const deleteCuota = useCallback(async (id) => {
-    await cuotasApi.remove(id);
+  const deleteCuota = useCallback(
+    async (id) => {
+      try {
+        setError(null);
 
-    setCuotas((prev) =>
-      prev.filter((item) => item.id !== id)
-    );
-  }, []);
+        await cuotasApi.remove(id);
+
+        await loadCuotas();
+      } catch (error) {
+        setError(error);
+        throw error;
+      }
+    },
+    [loadCuotas]
+  );
 
   return {
     cuotas,

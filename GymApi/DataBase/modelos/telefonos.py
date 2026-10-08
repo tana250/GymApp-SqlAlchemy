@@ -37,3 +37,10 @@ class Telefono(Base):
             "socioId": self.socioId,
             "numero": self.numero,
         }
+
+    @classmethod
+    def from_json(cls, data):
+        return cls(
+            socioId=data["socioId"],
+            numero=data["numero"],
+        )

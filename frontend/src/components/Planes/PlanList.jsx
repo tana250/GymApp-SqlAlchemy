@@ -31,9 +31,7 @@ export default function PlanList({
 
           <button
             type="button"
-            onClick={() =>
-              onDelete(plan.id)
-            }
+            onClick={() => onDelete(plan)}
           >
             Eliminar
           </button>

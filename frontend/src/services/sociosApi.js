@@ -31,6 +31,12 @@ const sociosApi = {
       }),
     });
   },
+
+  remove(id) {
+    return request(`/socios/${id}`, {
+      method: "DELETE",
+    });
+  },
 };
 
 export default sociosApi;

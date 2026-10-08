@@ -21,7 +21,7 @@ export default defineConfig({
         changeOrigin: true,
       },
 
-      "/socio-planes": {
+      "/socioPlanes": {
         target: "http://localhost:5000",
         changeOrigin: true,
       },
@@ -31,7 +31,7 @@ export default defineConfig({
         changeOrigin: true,
       },
 
-      "/cuota-planes": {
+      "/cuotasPlanes": {
         target: "http://localhost:5000",
         changeOrigin: true,
       },

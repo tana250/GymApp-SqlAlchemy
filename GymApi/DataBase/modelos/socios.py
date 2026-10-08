@@ -39,10 +39,12 @@ class Socio(Base):
 
     socios_planes: Mapped[List["SocioPlan"]] = relationship(
         back_populates="socio",
+        cascade="all, delete-orphan",
     )
 
     cuotas: Mapped[List["Cuota"]] = relationship(
         back_populates="socio",
+        cascade="all, delete-orphan",
     )
 
     telefonos: Mapped[List["Telefono"]] = relationship(
@@ -79,7 +81,9 @@ class Socio(Base):
     @classmethod
     def from_json(cls, data):
         return cls(
-            dni=data.get("dni"),
+            # Un DNI vacío se guarda como NULL:
+            # la columna es unique y dos "" chocarían.
+            dni=data.get("dni") or None,
             nombre=data["nombre"],
             apellido=data["apellido"],
             activo=data.get("activo", True),
@@ -88,7 +92,7 @@ class Socio(Base):
     def update_from_json(self, data):
 
         if "dni" in data:
-            self.dni = data["dni"]
+            self.dni = data["dni"] or None
 
         if "nombre" in data:
             self.nombre = data["nombre"]

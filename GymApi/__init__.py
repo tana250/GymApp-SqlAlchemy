@@ -1,6 +1,8 @@
 import os
 
 from flask import Flask
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from .DataBase.database import (
     db_session,
@@ -25,7 +27,89 @@ from .api.socio_planes import (
     SocioPlanItemAPI,
 )
 
+from .api.telefonos import (
+    TelefonoItemAPI,
+)
+
 from .api.cuotas import GenerarCuotasAPI
+
+
+def crear_relaciones_socio(socio, data):
+    """
+    Hook on_create de POST /socios/.
+
+    Crea los teléfonos y asigna los planes en la
+    MISMA transacción que el socio:
+
+        {
+            ...campos del socio,
+            "telefonos": ["1234", "5678"],
+            "planIds": [1, 2]
+        }
+
+    Si falla algo, se hace rollback completo: no
+    queda el socio a medio armar.
+    """
+
+    telefonos = data.get("telefonos", [])
+
+    if not isinstance(telefonos, list):
+        raise ValueError("telefonos debe ser una lista")
+
+    for numero in telefonos:
+        db_session.add(
+            Telefono(
+                socioId=socio.id,
+                numero=str(numero),
+            )
+        )
+
+    plan_ids = data.get("planIds", [])
+
+    if not isinstance(plan_ids, list):
+        raise ValueError("planIds debe ser una lista")
+
+    if not plan_ids:
+        return
+
+    try:
+        plan_ids = [
+            int(plan_id)
+            for plan_id in plan_ids
+        ]
+    except (TypeError, ValueError):
+        raise ValueError(
+            "planIds debe contener solo números"
+        ) from None
+
+    # Sin duplicados y con validación explícita:
+    # SQLite no valida foreign keys a nivel de datos
+    # por sí solo (solo con el PRAGMA, ver database.py),
+    # así que un plan inexistente no triggerea error.
+    plan_ids = list(dict.fromkeys(plan_ids))
+
+    existentes = set(
+        db_session.scalars(
+            select(Plan.id).where(
+                Plan.id.in_(plan_ids)
+            )
+        ).all()
+    )
+
+    faltantes = set(plan_ids) - existentes
+
+    if faltantes:
+        raise ValueError(
+            f"Planes inexistentes: {sorted(faltantes)}"
+        )
+
+    for plan_id in plan_ids:
+        db_session.add(
+            SocioPlan(
+                socioId=socio.id,
+                planId=plan_id,
+            )
+        )
 
 
 def create_app(test_config=None):
@@ -71,16 +155,31 @@ def create_app(test_config=None):
         app,
         Socio,
         "socios",
+        on_create=crear_relaciones_socio,
+        load=(
+            selectinload(Socio.socios_planes),
+        ),
     )
 
     # =========================
     # TELEFONOS
     # =========================
 
+    # Sin vista genérica de item: Telefono tiene
+    # clave compuesta (socioId, numero).
     register_api(
         app,
         Telefono,
         "telefonos",
+        item=False,
+    )
+
+    app.add_url_rule(
+        "/telefonos/<int:socio_id>/<numero>",
+        view_func=TelefonoItemAPI.as_view(
+            "telefono-item"
+        ),
+        methods=["DELETE"],
     )
 
     # =========================
@@ -129,6 +228,10 @@ def create_app(test_config=None):
         app,
         Cuota,
         "cuotas",
+        load=(
+            selectinload(Cuota.cuotas_planes),
+            selectinload(Cuota.pagos),
+        ),
     )
 
     # =========================

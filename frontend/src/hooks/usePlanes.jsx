@@ -1,8 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import planesApi from "../services/planesApi";
 
@@ -15,12 +11,19 @@ export default function usePlanes() {
 
   const [error, setError] = useState(null);
 
+  // Ver useSocios: re-fetch tras cada mutación,
+  // loading solo en la primera carga.
+  const primeraCarga = useRef(true);
+
 
   const loadPlanes = useCallback(async () => {
 
     try {
 
-      setLoading(true);
+      if (primeraCarga.current) {
+        setLoading(true);
+      }
+
       setError(null);
 
       const data = await planesApi.getAll();
@@ -28,22 +31,18 @@ export default function usePlanes() {
       setPlanes(data);
 
     } catch (error) {
-
       setError(error);
 
     } finally {
-
+      primeraCarga.current = false;
       setLoading(false);
-
     }
 
   }, []);
 
 
   useEffect(() => {
-
     loadPlanes();
-
   }, [loadPlanes]);
 
 
@@ -56,60 +55,87 @@ export default function usePlanes() {
 
   const createPlan = useCallback(async (plan) => {
 
-    const nuevoPlan = await planesApi.insert(plan);
+    try {
+      setError(null);
 
-    setPlanes((prev) => [
-      ...prev,
-      nuevoPlan,
-    ]);
+      const nuevoPlan = await planesApi.insert(plan);
 
-    return nuevoPlan;
+      await loadPlanes();
 
-  }, []);
+      return nuevoPlan;
+
+    } catch (error) {
+      setError(error);
+      throw error;
+    }
+
+  }, [loadPlanes]);
 
 
   const updatePlan = useCallback(
     async (id, plan) => {
 
-      const planActualizado =
-        await planesApi.update(
+      try {
+        setError(null);
+
+        const planActualizado = await planesApi.update(
           id,
           plan
         );
 
-      setPlanes((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? planActualizado
-            : item
-        )
-      );
+        await loadPlanes();
 
-      return planActualizado;
+        return planActualizado;
+
+      } catch (error) {
+        setError(error);
+        throw error;
+      }
 
     },
-    []
+    [loadPlanes]
   );
 
 
   const deactivatePlan = useCallback(
     async (id) => {
 
-      const planActualizado =
-        await planesApi.deactivate(id);
+      try {
+        setError(null);
 
-      setPlanes((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? planActualizado
-            : item
-        )
-      );
+        const planActualizado = await planesApi.deactivate(id);
 
-      return planActualizado;
+        await loadPlanes();
+
+        return planActualizado;
+
+      } catch (error) {
+        setError(error);
+        throw error;
+      }
 
     },
-    []
+    [loadPlanes]
+  );
+
+
+  const deletePlan = useCallback(
+    async (id) => {
+
+      try {
+        setError(null);
+
+        await planesApi.remove(id);
+
+        await loadPlanes();
+
+      } catch (error) {
+        setError(error);
+        throw error;
+      }
+
+    },
+    [loadPlanes]
   );
 
 
@@ -124,5 +150,6 @@ export default function usePlanes() {
     createPlan,
     updatePlan,
     deactivatePlan,
+    deletePlan,
   };
 }

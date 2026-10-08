@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import sociosApi from "../services/sociosApi";
 
 export function useSocios() {
@@ -6,9 +6,19 @@ export function useSocios() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Las mutaciones siempre vuelven a pedir la lista
+  // al backend (el estado local se desincroniza:
+  // to_json trae relations anidadas, etc.).
+  // Solo la primera carga muestra el loading de
+  // pantalla completa.
+  const primeraCarga = useRef(true);
+
   const loadSocios = useCallback(async () => {
     try {
-      setLoading(true);
+      if (primeraCarga.current) {
+        setLoading(true);
+      }
+
       setError(null);
 
       const data = await sociosApi.getAll();
@@ -17,6 +27,7 @@ export function useSocios() {
     } catch (error) {
       setError(error);
     } finally {
+      primeraCarga.current = false;
       setLoading(false);
     }
   }, []);
@@ -29,41 +40,60 @@ export function useSocios() {
     return sociosApi.getById(id);
   }, []);
 
-  const createSocio = useCallback(async (socio) => {
-    const nuevoSocio = await sociosApi.insert(socio);
+  const createSocio = useCallback(
+    async (socio) => {
+      try {
+        setError(null);
 
-    setSocios((prev) => [
-      ...prev,
-      nuevoSocio,
-    ]);
+        const nuevoSocio = await sociosApi.insert(socio);
 
-    return nuevoSocio;
-  }, []);
+        await loadSocios();
 
-  const updateSocio = useCallback(async (id, socio) => {
-    const socioActualizado = await sociosApi.update(
-      id,
-      socio
-    );
+        return nuevoSocio;
+      } catch (error) {
+        setError(error);
+        throw error;
+      }
+    },
+    [loadSocios]
+  );
 
-    setSocios((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? socioActualizado
-          : item
-      )
-    );
+  const updateSocio = useCallback(
+    async (id, socio) => {
+      try {
+        setError(null);
 
-    return socioActualizado;
-  }, []);
+        const socioActualizado = await sociosApi.update(
+          id,
+          socio
+        );
 
-  const deleteSocio = useCallback(async (id) => {
-    await sociosApi.remove(id);
+        await loadSocios();
 
-    setSocios((prev) =>
-      prev.filter((item) => item.id !== id)
-    );
-  }, []);
+        return socioActualizado;
+      } catch (error) {
+        setError(error);
+        throw error;
+      }
+    },
+    [loadSocios]
+  );
+
+  const deleteSocio = useCallback(
+    async (id) => {
+      try {
+        setError(null);
+
+        await sociosApi.remove(id);
+
+        await loadSocios();
+      } catch (error) {
+        setError(error);
+        throw error;
+      }
+    },
+    [loadSocios]
+  );
 
   return {
     socios,

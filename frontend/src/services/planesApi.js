@@ -55,6 +55,15 @@ const planesApi = {
 
   },
 
+
+  remove(id) {
+
+    return request(`/planes/${id}`, {
+      method: "DELETE",
+    });
+
+  },
+
 };
 
 

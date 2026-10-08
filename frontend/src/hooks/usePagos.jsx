@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import pagosApi from "../services/pagosApi";
 
 export function usePagos() {
@@ -6,9 +6,16 @@ export function usePagos() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Ver useSocios: re-fetch tras cada mutación,
+  // loading solo en la primera carga.
+  const primeraCarga = useRef(true);
+
   const loadPagos = useCallback(async () => {
     try {
-      setLoading(true);
+      if (primeraCarga.current) {
+        setLoading(true);
+      }
+
       setError(null);
 
       const data = await pagosApi.getAll();
@@ -17,6 +24,7 @@ export function usePagos() {
     } catch (error) {
       setError(error);
     } finally {
+      primeraCarga.current = false;
       setLoading(false);
     }
   }, []);
@@ -29,41 +37,57 @@ export function usePagos() {
     return pagosApi.getById(id);
   }, []);
 
-  const createPago = useCallback(async (pago) => {
-    const nuevoPago = await pagosApi.insert(pago);
+  const createPago = useCallback(
+    async (pago) => {
+      try {
+        setError(null);
 
-    setPagos((prev) => [
-      ...prev,
-      nuevoPago,
-    ]);
+        const nuevoPago = await pagosApi.insert(pago);
 
-    return nuevoPago;
-  }, []);
+        await loadPagos();
 
-  const updatePago = useCallback(async (id, pago) => {
-    const pagoActualizado = await pagosApi.update(
-      id,
-      pago
-    );
+        return nuevoPago;
+      } catch (error) {
+        setError(error);
+        throw error;
+      }
+    },
+    [loadPagos]
+  );
 
-    setPagos((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? pagoActualizado
-          : item
-      )
-    );
+  const updatePago = useCallback(
+    async (id, pago) => {
+      try {
+        setError(null);
 
-    return pagoActualizado;
-  }, []);
+        const pagoActualizado = await pagosApi.update(id, pago);
 
-  const deletePago = useCallback(async (id) => {
-    await pagosApi.remove(id);
+        await loadPagos();
 
-    setPagos((prev) =>
-      prev.filter((item) => item.id !== id)
-    );
-  }, []);
+        return pagoActualizado;
+      } catch (error) {
+        setError(error);
+        throw error;
+      }
+    },
+    [loadPagos]
+  );
+
+  const deletePago = useCallback(
+    async (id) => {
+      try {
+        setError(null);
+
+        await pagosApi.remove(id);
+
+        await loadPagos();
+      } catch (error) {
+        setError(error);
+        throw error;
+      }
+    },
+    [loadPagos]
+  );
 
   return {
     pagos,

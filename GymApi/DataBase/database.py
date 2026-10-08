@@ -1,13 +1,21 @@
 # DataBase/database.py
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import scoped_session, sessionmaker, declarative_base
 
 
 engine = create_engine(
     "sqlite:///instance/database.db",
-    echo=True,
 )
+
+
+@event.listens_for(engine, "connect")
+def _activar_foreign_keys(dbapi_connection, connection_record):
+    # SQLite no valida las foreign keys por defecto.
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 
 db_session = scoped_session(
     sessionmaker(
@@ -19,12 +27,9 @@ db_session = scoped_session(
 
 Base = declarative_base()
 
-Base.query = db_session.query_property()
-
 
 def init_db():
 
     Base.metadata.create_all(
         bind=engine
     )
-
