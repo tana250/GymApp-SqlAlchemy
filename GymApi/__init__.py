@@ -1,6 +1,11 @@
 import os
 
-from flask import Flask
+from flask import (
+    Flask,
+    jsonify,
+    request,
+    session,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
@@ -18,6 +23,7 @@ from .DataBase.modelos import (
     CuotaPlan,
     MetodoPago,
     Pago,
+    Usuario,
 )
 
 from .api.crud import (
@@ -38,6 +44,12 @@ from .api.telefonos import (
 from .api.cuotas import GenerarCuotasAPI
 
 from .api.pagos import PagoAPI
+
+from .api.auth import (
+    LoginAPI,
+    LogoutAPI,
+    MeAPI,
+)
 
 
 def crear_relaciones_socio(socio, data):
@@ -149,9 +161,79 @@ def create_app(test_config=None):
     # Crear las tablas.
     init_db()
 
+    # Seed: si no hay usuarios, crear el admin
+    # por defecto (cambiar la password por
+    # SQL/script; no hay endpoint de gestión).
+    if db_session.scalar(select(Usuario.id)) is None:
+        admin = Usuario(
+            username="admin",
+            activo=True,
+        )
+        admin.set_password("admin")
+        db_session.add(admin)
+        db_session.commit()
+
     @app.teardown_appcontext
     def shutdown_session(exception=None):
         db_session.remove()
+
+    @app.before_request
+    def exigir_sesion():
+        # Todo lo que no sea /auth requiere sesión.
+        if request.path.startswith("/auth"):
+            return None
+
+        usuario_id = session.get("usuarioId")
+
+        if usuario_id is None:
+            return jsonify({
+                "error": "No autorizado"
+            }), 401
+
+        # Se valida el usuario completo (no solo el
+        # id) para que un usuario desactivado pierda
+        # el acceso apenas se lo desactiva.
+        usuario = db_session.scalar(
+            select(Usuario).where(
+                Usuario.id == usuario_id,
+            )
+        )
+
+        if usuario is None or not usuario.activo:
+            session.clear()
+            return jsonify({
+                "error": "No autorizado"
+            }), 401
+
+        return None
+
+    # =========================
+    # AUTH
+    # =========================
+
+    app.add_url_rule(
+        "/auth/login",
+        view_func=LoginAPI.as_view(
+            "auth-login"
+        ),
+        methods=["POST"],
+    )
+
+    app.add_url_rule(
+        "/auth/logout",
+        view_func=LogoutAPI.as_view(
+            "auth-logout"
+        ),
+        methods=["POST"],
+    )
+
+    app.add_url_rule(
+        "/auth/me",
+        view_func=MeAPI.as_view(
+            "auth-me"
+        ),
+        methods=["GET"],
+    )
 
     # =========================
     # SOCIOS
@@ -235,6 +317,7 @@ def create_app(test_config=None):
         Cuota,
         "cuotas",
         load=(
+            selectinload(Cuota.socio),
             selectinload(Cuota.cuotas_planes),
             selectinload(Cuota.pagos),
         ),

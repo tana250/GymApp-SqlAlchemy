@@ -6,6 +6,7 @@ from .cuotas import Cuota
 from .cuotas_planes import CuotaPlan
 from .metodos_pago import MetodoPago
 from .pagos import Pago
+from .usuarios import Usuario
 
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "CuotaPlan",
     "MetodoPago",
     "Pago",
+    "Usuario",
 ]

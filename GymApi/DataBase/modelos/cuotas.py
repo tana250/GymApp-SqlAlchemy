@@ -119,6 +119,17 @@ class Cuota(Base):
             "año": self.año,
             "mes": self.mes,
 
+            "socio": (
+                {
+                    "id": self.socio.id,
+                    "dni": self.socio.dni,
+                    "nombre": self.socio.nombre,
+                    "apellido": self.socio.apellido,
+                }
+                if self.socio
+                else None
+            ),
+
             "planes": [
                 cuota_plan.to_json()
                 for cuota_plan in self.cuotas_planes

@@ -51,6 +51,7 @@ npm run lint   # oxlint; pasa, hoy con warnings
 - `instance/config.py` es opcional: se carga como config de Flask si existe (hoy no existe).
 - Modelos y endpoints pagos: `Pago` tiene `metodoPagoId` (FK a `MetodosPago`). `POST /pagos/` usa un view custom (`GymApi/api/pagos.py`, `PagoAPI`) que valida antes del flush (cuota/método inexistentes, método inactivo e importe contra saldo → 400): el `GroupAPI` genérico no sirve porque hace `flush()` antes del hook `on_create` y la FK revienta con 409. `PagoAPI` hereda de `GroupAPI` (mismo GET listado con `load`). `GET /pagos/` devuelve el método (`metodoPago`), el socio y el período de la cuota.
 - `MetodoPago` (`GymApi/DataBase/modelos/metodos_pago.py`): `nombre` único requerido, `descripcion` opcional, `activo` (default True; los pagos solo se registran con métodos activos); CRUD genérico en `/metodosPago/` con filtro `?activo=true|false`. La tabla `MetodosPago` se crea sola con `create_all`; las columnas `Pagos.metodoPagoId` y `MetodosPago.activo` se agregaron a la DB existente con `ALTER TABLE` one-off (la tabla `Pagos` estaba vacía y `MetodosPago` tiene default). Al recrear la DB desde cero el schema sale completo — no hay migraciones para estos cambios.
+- Autenticación por sesión cookie: `Usuario` (`GymApi/DataBase/modelos/usuarios.py`) con `username` único y `password_hash` (werkzeug `generate_password_hash`/`check_password_hash`; `to_json()` jamás expone el hash). Endpoints custom en `GymApi/api/auth.py`: `POST /auth/login` (401 genérico "Usuario o contraseña incorrectos"), `POST /auth/logout` (204) y `GET /auth/me` (usuario logueado o 401). Un `@app.before_request` en `create_app` exige sesión + usuario **activo** en todo lo que no sea `/auth/*` → 401 JSON. `Usuarios` se crea sola con `create_all`; en cada arranque, si la tabla está vacía, `create_app` siembra `admin`/`admin` (cambiar la password por SQL/script). `secret_key` = "dev" (configurable en `instance/config.py`).
 - El código, los nombres de campos (`año`, `mes`) y los mensajes de error de la API están en
   español — mantener la consistencia.
 - Código muerto: `GymApi/DataBase/modelos/servicios/cuotas.py` nunca se importa y sus imports
@@ -58,7 +59,7 @@ npm run lint   # oxlint; pasa, hoy con warnings
 
 ## Frontend
 
-- Sin router: `src/App.jsx` renderiza las cinco páginas a la vez (Socios, Planes, Cuotas, Métodos de pago, Pagos).
+- Sin router: `src/App.jsx` renderiza las cinco páginas a la vez (Socios, Planes, Cuotas, Métodos de pago, Pagos) tras el auth gate: `useAuth` (`hooks/useAuth.jsx`) consulta `GET /auth/me` al montar; sin sesión muestra `LoginForm` (`components/Auth/LoginForm.jsx`); logueado muestra las páginas + botón "Cerrar sesión" (`POST /auth/logout`).
 - Los llamados a la API pasan por `request()` en `src/services/api.js`; un archivo por recurso
   en `src/services/`. Los errores son `{"error": ...}` (la key de Flask) y se lanzan con `throw`.
 - Convención de hooks (`useSocios`, `usePlanes`, `usePagos`, `useCuotas`, `useTelefonos`,
@@ -78,7 +79,7 @@ npm run lint   # oxlint; pasa, hoy con warnings
   página aparte (`MetodosPagoPage`) con crear/editar/eliminar y toggle `activo`
   (`PATCH /metodosPago/<id> {activo}`). `PagoForm` filtra los métodos activos.
 - Proxy de Vite (`frontend/vite.config.js`): solo los prefijos listados llegan a la API — hoy
-  `/socios`, `/telefonos`, `/planes`, `/socioPlanes`, `/cuotas`, `/cuotasPlanes`,
+  `/auth`, `/socios`, `/telefonos`, `/planes`, `/socioPlanes`, `/cuotas`, `/cuotasPlanes`,
   `/metodosPago`, `/pagos`. Al agregar un recurso, agregar su prefijo acá o Vite devuelve
   `index.html` en vez de JSON.
 - La API no tiene CORS: las llamadas del browser tienen que pasar por el proxy de Vite en dev.

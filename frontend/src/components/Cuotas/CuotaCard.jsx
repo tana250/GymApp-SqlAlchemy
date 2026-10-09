@@ -9,6 +9,17 @@ export default function CuotaCard({
       </h3>
 
       <p>
+        Socio:{" "}
+        {cuota.socio
+          ? `${cuota.socio.apellido}, ${cuota.socio.nombre}`
+          : "-"}
+      </p>
+
+      <p>
+        DNI: {cuota.socio?.dni || "-"}
+      </p>
+
+      <p>
         Total: ${cuota.total}
       </p>
 
