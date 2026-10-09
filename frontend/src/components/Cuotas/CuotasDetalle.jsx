@@ -1,9 +1,6 @@
-import PagoForm from "../Pagos/PagoForm";
-
 export default function CuotaDetalle({
   cuota,
   onClose,
-  onPago,
 }) {
   return (
     <section>
@@ -51,13 +48,6 @@ export default function CuotaDetalle({
             </li>
           ))}
         </ul>
-      )}
-
-      {cuota.saldo > 0 && (
-        <PagoForm
-          cuota={cuota}
-          onSubmit={onPago}
-        />
       )}
 
       <button

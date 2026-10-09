@@ -49,28 +49,38 @@ npm run lint   # oxlint; pasa, hoy con warnings
   de datos). Los deletes en cascada están declarados en `Socio` (socios_planes, cuotas → pagos);
   borrar un plan en uso responde 409 en vez de dejar huérfanos.
 - `instance/config.py` es opcional: se carga como config de Flask si existe (hoy no existe).
-- Código muerto: `GymApi/DataBase/modelos/servicios/cuotas.py` nunca se importa y sus imports
-  están rotos; la lógica real de generación de cuotas está inline en `GymApi/api/cuotas.py`.
+- Modelos y endpoints pagos: `Pago` tiene `metodoPagoId` (FK a `MetodosPago`). `POST /pagos/` usa un view custom (`GymApi/api/pagos.py`, `PagoAPI`) que valida antes del flush (cuota/método inexistentes, método inactivo e importe contra saldo → 400): el `GroupAPI` genérico no sirve porque hace `flush()` antes del hook `on_create` y la FK revienta con 409. `PagoAPI` hereda de `GroupAPI` (mismo GET listado con `load`). `GET /pagos/` devuelve el método (`metodoPago`), el socio y el período de la cuota.
+- `MetodoPago` (`GymApi/DataBase/modelos/metodos_pago.py`): `nombre` único requerido, `descripcion` opcional, `activo` (default True; los pagos solo se registran con métodos activos); CRUD genérico en `/metodosPago/` con filtro `?activo=true|false`. La tabla `MetodosPago` se crea sola con `create_all`; las columnas `Pagos.metodoPagoId` y `MetodosPago.activo` se agregaron a la DB existente con `ALTER TABLE` one-off (la tabla `Pagos` estaba vacía y `MetodosPago` tiene default). Al recrear la DB desde cero el schema sale completo — no hay migraciones para estos cambios.
 - El código, los nombres de campos (`año`, `mes`) y los mensajes de error de la API están en
   español — mantener la consistencia.
+- Código muerto: `GymApi/DataBase/modelos/servicios/cuotas.py` nunca se importa y sus imports
+  están rotos; la lógica real de generación de cuotas está inline en `GymApi/api/cuotas.py`.
 
 ## Frontend
 
-- Sin router: `src/App.jsx` renderiza las cuatro páginas a la vez.
+- Sin router: `src/App.jsx` renderiza las cinco páginas a la vez (Socios, Planes, Cuotas, Métodos de pago, Pagos).
 - Los llamados a la API pasan por `request()` en `src/services/api.js`; un archivo por recurso
   en `src/services/`. Los errores son `{"error": ...}` (la key de Flask) y se lanzan con `throw`.
 - Convención de hooks (`useSocios`, `usePlanes`, `usePagos`, `useCuotas`, `useTelefonos`,
-  `useSocioPlanes`): toda mutación termina con `await loadX()` — la lista se re-pide al backend,
-  nunca se actualiza en local. El `loading` de pantalla completa solo se activa en la primera
-  carga (ref `primeraCarga`), para no blanquear la UI en cada guardado.
+  `useSocioPlanes`, `useMetodosPago`): toda mutación termina con `await loadX()` — la lista se
+  re-pide al backend, nunca se actualiza en local. El `loading` de pantalla completa solo se
+  activa en la primera carga (ref `primeraCarga`), para no blanquear la UI en cada guardado.
 - La página de Socios usa modales (`components/Socios/Modal.jsx`): "Modificar" (`SocioEditForm`:
   nombre, apellido y ABM de teléfonos) y "Planes" (`SocioPlanes`: asignar/quitar). "Dar de baja"
   / "Reactivar" es un `PATCH /socios/<id> {activo}`; la creación manda `telefonos` + `planIds`
   en el mismo `POST /socios/` (`SocioForm`). El socio del modal se deriva de la lista por id
   (no se guarda un snapshot).
+- Cuotas: el listado filtra las cuotas `estado === "pagada"` (en `useCuotas.loadCuotas`; `estado`
+  es calculado, no columna). El cobro NO vive en el detalle de la cuota (es informativo).
+- Pagos: `PagosPage` tiene "Cobrar cuota" (`components/Pagos/PagarCuotaForm.jsx` — busca socio por
+  DNI en cliente, elige socio → cuota pendiente → método activo → importe, y registra con
+  `POST /pagos/` vía `createPago`) y el listado "Cobros". La gestión de métodos de pago es una
+  página aparte (`MetodosPagoPage`) con crear/editar/eliminar y toggle `activo`
+  (`PATCH /metodosPago/<id> {activo}`). `PagoForm` filtra los métodos activos.
 - Proxy de Vite (`frontend/vite.config.js`): solo los prefijos listados llegan a la API — hoy
-  `/socios`, `/telefonos`, `/planes`, `/socioPlanes`, `/cuotas`, `/cuotasPlanes`, `/pagos`. Al
-  agregar un recurso, agregar su prefijo acá o Vite devuelve `index.html` en vez de JSON.
+  `/socios`, `/telefonos`, `/planes`, `/socioPlanes`, `/cuotas`, `/cuotasPlanes`,
+  `/metodosPago`, `/pagos`. Al agregar un recurso, agregar su prefijo acá o Vite devuelve
+  `index.html` en vez de JSON.
 - La API no tiene CORS: las llamadas del browser tienen que pasar por el proxy de Vite en dev.
 
 ## Git

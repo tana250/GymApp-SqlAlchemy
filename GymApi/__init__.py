@@ -16,10 +16,14 @@ from .DataBase.modelos import (
     SocioPlan,
     Cuota,
     CuotaPlan,
+    MetodoPago,
     Pago,
 )
 
-from .api.crud import register_api
+from .api.crud import (
+    ItemAPI,
+    register_api,
+)
 
 from .api.socio_planes import (
     SocioPlanAPI,
@@ -32,6 +36,8 @@ from .api.telefonos import (
 )
 
 from .api.cuotas import GenerarCuotasAPI
+
+from .api.pagos import PagoAPI
 
 
 def crear_relaciones_socio(socio, data):
@@ -257,13 +263,51 @@ def create_app(test_config=None):
     )
 
     # =========================
-    # PAGOS
+    # METODOS DE PAGO
     # =========================
 
     register_api(
         app,
+        MetodoPago,
+        "metodosPago",
+    )
+
+    # =========================
+    # PAGOS
+    # =========================
+
+    pago_group = PagoAPI.as_view(
+        "pagos-group",
         Pago,
-        "pagos",
+        None,
+        (
+            selectinload(Pago.metodoPago),
+            selectinload(Pago.cuota).selectinload(
+                Cuota.socio,
+            ),
+        ),
+    )
+
+    app.add_url_rule(
+        "/pagos/",
+        view_func=pago_group,
+        methods=[
+            "GET",
+            "POST",
+        ],
+    )
+
+    app.add_url_rule(
+        "/pagos/<int:id>",
+        view_func=ItemAPI.as_view(
+            "pagos-item",
+            Pago,
+        ),
+        methods=[
+            "GET",
+            "PATCH",
+            "DELETE",
+        ],
     )
 
     return app

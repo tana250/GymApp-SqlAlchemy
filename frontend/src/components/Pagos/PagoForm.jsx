@@ -2,10 +2,21 @@ import { useState } from "react";
 
 export default function PagoForm({
   cuota,
+  metodos,
   onSubmit,
 }) {
   const [importe, setImporte] =
     useState("");
+
+  // Solo se puede pagar con métodos activos.
+  const metodosActivos = metodos.filter(
+    (metodo) => metodo.activo
+  );
+
+  const [metodoPagoId, setMetodoPagoId] =
+    useState(
+      metodosActivos[0]?.id ?? ""
+    );
 
   const [saving, setSaving] =
     useState(false);
@@ -13,7 +24,7 @@ export default function PagoForm({
   async function handleSubmit(event) {
     event.preventDefault();
 
-    if (!importe) {
+    if (!importe || !metodoPagoId) {
       return;
     }
 
@@ -22,6 +33,7 @@ export default function PagoForm({
 
       await onSubmit({
         cuotaId: cuota.id,
+        metodoPagoId,
         fecha: new Date()
           .toISOString()
           .split("T")[0],
@@ -44,6 +56,38 @@ export default function PagoForm({
         Saldo pendiente: ${cuota.saldo}
       </p>
 
+      <div>
+        <label>Método de pago</label>
+
+        <select
+          value={metodoPagoId}
+          onChange={(event) =>
+            setMetodoPagoId(
+              Number(event.target.value)
+            )
+          }
+          required
+        >
+          {metodosActivos.length === 0 && (
+            <option value="">
+              No hay métodos activos
+            </option>
+          )}
+
+          {metodosActivos.map((metodo) => (
+            <option
+              key={metodo.id}
+              value={metodo.id}
+            >
+              {metodo.nombre}
+              {metodo.descripcion
+                ? ` — ${metodo.descripcion}`
+                : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <input
         type="number"
         min="1"
@@ -52,6 +96,7 @@ export default function PagoForm({
         onChange={(event) =>
           setImporte(event.target.value)
         }
+        placeholder="Importe"
         required
       />
 
@@ -59,7 +104,8 @@ export default function PagoForm({
         type="submit"
         disabled={
           saving ||
-          cuota.saldo <= 0
+          cuota.saldo <= 0 ||
+          metodosActivos.length === 0
         }
       >
         {saving

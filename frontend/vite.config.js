@@ -36,6 +36,11 @@ export default defineConfig({
         changeOrigin: true,
       },
 
+      "/metodosPago": {
+        target: "http://localhost:5000",
+        changeOrigin: true,
+      },
+
       "/pagos": {
         target: "http://localhost:5000",
         changeOrigin: true,

@@ -4,6 +4,7 @@ from .planes import Plan
 from .socio_planes import SocioPlan
 from .cuotas import Cuota
 from .cuotas_planes import CuotaPlan
+from .metodos_pago import MetodoPago
 from .pagos import Pago
 
 
@@ -14,5 +15,6 @@ __all__ = [
     "SocioPlan",
     "Cuota",
     "CuotaPlan",
+    "MetodoPago",
     "Pago",
 ]

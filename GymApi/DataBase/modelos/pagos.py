@@ -21,6 +21,11 @@ class Pago(Base):
         nullable=False,
     )
 
+    metodoPagoId: Mapped[int] = mapped_column(
+        ForeignKey("MetodosPago.id"),
+        nullable=False,
+    )
+
     fecha: Mapped[date] = mapped_column(
         Date,
         nullable=False,
@@ -35,13 +40,19 @@ class Pago(Base):
         back_populates="pagos"
     )
 
+    metodoPago: Mapped["MetodoPago"] = relationship(
+        back_populates="pagos"
+    )
+
     def __init__(
         self,
         cuotaId=None,
+        metodoPagoId=None,
         fecha=None,
         importe=None,
     ):
         self.cuotaId = cuotaId
+        self.metodoPagoId = metodoPagoId
         self.fecha = fecha
         self.importe = importe
 
@@ -50,6 +61,29 @@ class Pago(Base):
         return {
             "id": self.id,
             "cuotaId": self.cuotaId,
+            "metodoPagoId": self.metodoPagoId,
+            "metodoPago": (
+                self.metodoPago.to_json()
+                if self.metodoPago
+                else None
+            ),
+            "socio": (
+                {
+                    "id": self.cuota.socio.id,
+                    "nombre": self.cuota.socio.nombre,
+                    "apellido": self.cuota.socio.apellido,
+                }
+                if self.cuota and self.cuota.socio
+                else None
+            ),
+            "periodo": (
+                {
+                    "año": self.cuota.año,
+                    "mes": self.cuota.mes,
+                }
+                if self.cuota
+                else None
+            ),
             "fecha": (
                 self.fecha.isoformat()
                 if self.fecha
@@ -68,11 +102,18 @@ class Pago(Base):
 
         return cls(
             cuotaId=data["cuotaId"],
+            metodoPagoId=data["metodoPagoId"],
             fecha=fecha,
             importe=data["importe"],
         )
 
     def update_from_json(self, data):
+
+        if "cuotaId" in data:
+            self.cuotaId = data["cuotaId"]
+
+        if "metodoPagoId" in data:
+            self.metodoPagoId = data["metodoPagoId"]
 
         if "fecha" in data:
 

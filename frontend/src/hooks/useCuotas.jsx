@@ -21,7 +21,14 @@ export function useCuotas() {
 
       const data = await cuotasApi.getAll();
 
-      setCuotas(data);
+      // El listado no muestra cuotas saldadas: el
+      // estado se calcula según total/pagados.
+      setCuotas(
+        data.filter(
+          (cuota) =>
+            cuota.estado !== "pagada"
+        )
+      );
     } catch (error) {
       setError(error);
     } finally {
