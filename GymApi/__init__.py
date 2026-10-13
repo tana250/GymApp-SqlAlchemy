@@ -52,6 +52,20 @@ from .api.auth import (
 )
 
 
+# Build del frontend (Vite). Se calcula desde
+# __file__ para no depender del CWD (la DB sí es
+# relativa al CWD, ver DataBase/database.py).
+BASE_DIR = os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))
+)
+
+FRONTEND_DIST = os.path.join(
+    BASE_DIR,
+    "frontend",
+    "dist",
+)
+
+
 def crear_relaciones_socio(socio, data):
     """
     Hook on_create de POST /socios/.
@@ -135,6 +149,8 @@ def create_app(test_config=None):
     app = Flask(
         __name__,
         instance_relative_config=True,
+        static_folder=FRONTEND_DIST,
+        static_url_path="",
     )
 
     app.config.from_mapping(
@@ -179,7 +195,17 @@ def create_app(test_config=None):
 
     @app.before_request
     def exigir_sesion():
-        # Todo lo que no sea /auth requiere sesión.
+        # El frontend es público: el SPA tiene que
+        # poder cargar y consultar /auth/me sin
+        # sesión; él mismo muestra el login cuando
+        # recibe 401. Los endpoints del SPA son
+        # "static" (assets en frontend/dist) e "index"
+        # (la raíz).
+        if request.endpoint in ("static", "index"):
+            return None
+
+        # /auth/* (login/logout/me) tampoco exige
+        # sesión.
         if request.path.startswith("/auth"):
             return None
 
@@ -392,5 +418,27 @@ def create_app(test_config=None):
             "DELETE",
         ],
     )
+
+    # =========================
+    # FRONTEND (build de Vite)
+    # =========================
+
+    # Los assets (/assets/…, favicon.svg, icons.svg)
+    # los sirve solo el endpoint "static"
+    # (static_folder=frontend/dist). Acá se resuelve
+    # la raíz con el index.html del build.
+    @app.route("/")
+    def index():
+
+        if not os.path.exists(
+            os.path.join(FRONTEND_DIST, "index.html")
+        ):
+            return (
+                "Frontend no compilado: ejecutá "
+                "`npm run build` dentro de frontend/.",
+                503,
+            )
+
+        return app.send_static_file("index.html")
 
     return app
